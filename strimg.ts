@@ -74,22 +74,22 @@ class Terminal16Color implements TerminalColor
 
 export interface ImageDataConverter
 {
-    ( image: ImageData ): string;
+    ( image: ImageData ): Promise<string>;
 }
 
 export interface ColorReducer
 {
-    ( image: ImageData ): ImageData;
+    ( image: ImageData ): Promise<ImageData>;
 }
 
 interface ImageColorReducer
 {
-    convert( image: ImageData ): ImageData | null;
+    convert( image: ImageData ): Promise<ImageData>;
 }
 
 interface ImageToStringConverter
 {
-    convert( image: ImageData ): string;
+    convert( image: ImageData ): Promise<string>;
 }
 
 export class Strimg
@@ -100,7 +100,7 @@ export class Strimg
     private mode: 'contain' | 'cover' = 'contain';
     private positionX: 'center' | 'left' | 'right' = 'center';
     private positionY: 'center' | 'top' | 'bottom' = 'center';
-    private color = new Terminal16Color();
+    private color: TerminalColor = new Terminal16Color();
 
     constructor( width?: number, height?: number )
     {
@@ -110,20 +110,18 @@ export class Strimg
         }
     }
 
-    public async loadImage( url: string ): Promise<this>
+    public async loadImage( url: string ): Promise<SkImage>
     {
         this.image = await loadImage( url );
 
-        return this;
+        return this.image;
     }
 
-    public convert( converter?: ImageDataConverter, reducer?: ColorReducer )
+    public async convert( converter?: ImageDataConverter, reducer?: ColorReducer )
     {
         const rawImage = this.resizeImage();
-        if ( !rawImage ) { return ''; }
 
-        const image = reducer ? reducer( rawImage ) : this.imageDataToConsoleColors( rawImage );
-        if ( !image ) { return ''; }
+        const image = await ( reducer ? reducer( rawImage ) : this.imageDataToConsoleColors( rawImage ) );
 
         return converter ? converter( image ) : this.imageDataToConsoleString( image );
     }
@@ -136,12 +134,12 @@ export class Strimg
 
     private resizeImage()
     {
-        if ( !this.image ) { return; }
+        if ( !this.image ) { throw StrimgError.noImage(); }
 
         const canvas = Canvas.MakeCanvas( this.width, this.height );
         const context = canvas.getContext( '2d' );
 
-        if ( !context ) { return; }
+        if ( !context ) { throw StrimgError.noContext(); }
 
         const size = this.culcSize( this.image.width(), this.image.height() );
 
@@ -204,6 +202,7 @@ export class Strimg
         {
             return { width: this.width, height: Math.floor( height * scale ) }
         }
+
         return {
             width: Math.floor( width * this.height / height ),
             height: this.height,
@@ -223,6 +222,13 @@ export class Strimg
             height: this.height,
         };
     }
+}
+
+class StrimgError
+{
+    static noImage() { return new Error( 'No loaded image.' ); }
+
+    static noContext() { return new Error( 'Failure getContext2d.' ); }
 }
 
 class Color
@@ -416,11 +422,11 @@ class ToneReductionImage implements ImageColorReducer
         this.table = color.colors();
     }
 
-    public convert( image: ImageData )
+    public async convert( image: ImageData )
     {
         const canvas = Canvas.MakeCanvas( image.width, image.height );
         const context = canvas.getContext( '2d' );
-        if ( !context ) { return null; }
+        if ( !context ) { throw StrimgError.noContext(); }
 
         const max = image.data.length;
         for ( let i = 0 ; i < max ; i += 4 )
@@ -466,7 +472,7 @@ class ImageToTerminalString implements ImageToStringConverter
         this.colors = color.terminal();
     }
 
-    public convert( image: ImageData ): string
+    public async convert( image: ImageData )
     {
         const lines: string[] = [];
         for ( let y = 0 ; y < image.height ; y += 2 )
