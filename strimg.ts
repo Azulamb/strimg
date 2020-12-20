@@ -1,76 +1,5 @@
 import Canvas, { loadImage, SkImage, ImageData } from 'https://deno.land/x/canvas@v1.0.4/mod.ts';
-
-interface TerminalColorTable
-{
-    reset: string;
-    front: { [ key: string ]: string, default: string, },
-    back: { [ key: string ]: string, default: string, },
-}
-
-interface TerminalColor
-{
-    colors(): { r: number, g: number, b: number }[];
-
-    terminal(): TerminalColorTable;
-}
-
-class Terminal16Color implements TerminalColor
-{
-    private table =
-    [
-        { r: 0,   g: 0,   b: 0,   back: '30m', front: '40m',  name: 'black' },
-        { r: 128, g: 0,   b: 0,   back: '31m', front: '41m',  name: 'maroon' },
-        { r: 0,   g: 128, b: 0,   back: '32m', front: '42m',  name: 'green' },
-        { r: 128, g: 128, b: 0,   back: '33m', front: '43m',  name: 'olive' },
-        { r: 0,   g: 0,   b: 128, back: '34m', front: '44m',  name: 'navy' },
-        { r: 128, g: 0,   b: 128, back: '35m', front: '45m',  name: 'purple' },
-        { r: 0,   g: 128, b: 128, back: '36m', front: '46m',  name: 'teal' },
-        { r: 192, g: 192, b: 192, back: '37m', front: '47m',  name: 'silver' },
-        { r: 128, g: 128, b: 128, back: '90m', front: '100m', name: 'gray' },
-        { r: 255, g: 0,   b: 0,   back: '91m', front: '101m', name: 'red' },
-        { r: 0,   g: 255, b: 0,   back: '92m', front: '102m', name: 'lime' },
-        { r: 255, g: 255, b: 0,   back: '93m', front: '103m', name: 'yellow' },
-        { r: 0,   g: 0,   b: 255, back: '94m', front: '104m', name: 'blue' },
-        { r: 255, g: 0,   b: 255, back: '95m', front: '105m', name: 'magenta' },
-        { r: 0,   g: 255, b: 255, back: '96m', front: '106m', name: 'cyan' },
-        { r: 255, g: 255, b: 255, back: '97m', front: '107m', name: 'white' },
-    ];
-
-    constructor()
-    {
-        const prefix = '\x1b[';
-        this.table.forEach( ( color ) =>
-        {
-            color.back = prefix + color.back;
-            color.front = prefix + color.front;
-        } );
-    }
-
-    public colors() { return this.table.map( ( color ) => { return { r: color.r, g: color.g, b: color.b }; } ); }
-
-    public terminal()
-    {
-        const back: { [ key: string ]: string, default: string, } = { default: '', };
-        const front: { [ key: string ]: string, default: string, } = { default: '', };
-
-        this.table.forEach( ( color ) =>
-        {
-            const code = Color.ColorCodeToString(
-                color.r,
-                color.g,
-                color.b
-            );
-            back[ code ] = color.back;
-            front[ code ] = color.front;
-        } );
-
-        return {
-            reset: '\x1b[0m',
-            front: front,
-            back: back,
-        };
-    }
-}
+import { termcolor, TerminalColor, TerminalColorTable } from 'https://github.com/Azulamb/termcolor/raw/main/mod.ts'
 
 export interface ImageDataConverter
 {
@@ -100,7 +29,7 @@ export class Strimg
     private mode: 'contain' | 'cover' = 'contain';
     private positionX: 'center' | 'left' | 'right' = 'center';
     private positionY: 'center' | 'top' | 'bottom' = 'center';
-    private color: TerminalColor = new Terminal16Color();
+    private color: TerminalColor = new termcolor.tc16();
 
     constructor( width?: number, height?: number )
     {
@@ -108,6 +37,11 @@ export class Strimg
         {
             this.resize( width, height );
         }
+    }
+
+    public setTerminalColor( color: TerminalColor )
+    {
+        this.color = color;
     }
 
     public async loadImage( url: string ): Promise<SkImage>
@@ -468,8 +402,7 @@ class ImageToTerminalString implements ImageToStringConverter
 
     public setColor( color: TerminalColor )
     {
-        const prefix = '\x1b[';
-        this.colors = color.terminal();
+        this.colors = color.terminalColorTable();
     }
 
     public async convert( image: ImageData )
