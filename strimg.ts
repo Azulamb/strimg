@@ -29,7 +29,7 @@ export class Strimg
     private mode: 'contain' | 'cover' = 'contain';
     private positionX: 'center' | 'left' | 'right' = 'center';
     private positionY: 'center' | 'top' | 'bottom' = 'center';
-    private color: TerminalColor = new termcolor.tc16();
+    private color: TerminalColor | null = new termcolor.tc16();
 
     constructor( width?: number, height?: number )
     {
@@ -39,10 +39,11 @@ export class Strimg
         }
     }
 
-    public setTerminalColor( color: TerminalColor | 16 | 256 )
+    public setTerminalColor( color: TerminalColor | 0 | 16 | 256 )
     {
         if ( typeof color === 'number' )
         {
+            if ( color === 0 ) { this.color = null; } // Full color.
             if ( color === 16 ) { this.color = new termcolor.tc16(); return true; }
             if ( color === 256 ) { this.color = new termcolor.tc256(); return true; }
 
@@ -94,6 +95,8 @@ export class Strimg
 
     public imageDataToConsoleColors( image: ImageData )
     {
+        if ( !this.color ) { return Promise.resolve( image ); }
+
         const converter = new ToneReductionImage();
         converter.setColor( this.color );
 
@@ -102,6 +105,11 @@ export class Strimg
 
     public imageDataToConsoleString( image: ImageData )
     {
+        if ( !this.color )
+        {
+            return ( new ImageToFullColorTerminalString() ).convert( image );
+        }
+
         const converter = new ImageToTerminalString();
         converter.setColor( this.color );
 
@@ -413,6 +421,8 @@ class ImageToTerminalString implements ImageToStringConverter
     public setColor( color: TerminalColor )
     {
         this.colors = color.terminalColorTable();
+        if ( !this.colors.back.default ) { this.colors.back.default = color.terminalColors().back[ 0 ]; }
+        if ( !this.colors.front.default ) { this.colors.front.default = color.terminalColors().front[ 0 ]; }
     }
 
     public async convert( image: ImageData )
@@ -454,6 +464,56 @@ class ImageToTerminalString implements ImageToStringConverter
                 line.push( this.halfBlock );
             }
             lines.push( line.join( '' ) + this.colors.reset );
+        }
+    
+        return lines.join( this.newLine );
+    }
+}
+
+class ImageToFullColorTerminalString implements ImageToStringConverter
+{
+    private newLine = '\n';
+    private halfBlock = '▀';
+    private reset = '\x1b[0m';
+
+    private colorToFrontString( r: number, g: number, b: number )
+    {
+        return `\x1b[38;2;${ r };${ g };${ b }m`;
+    }
+    private colorToBackString( r: number, g: number, b: number )
+    {
+        return `\x1b[48;2;${ r };${ g };${ b }m`;
+    }
+
+    public async convert( image: ImageData )
+    {
+        const lines: string[] = [];
+        for ( let y = 0 ; y < image.height ; y += 2 )
+        {
+            let prevBack = '';
+            let prevFront = '';
+            const line: string[] = [];
+            for ( let x = 0 ; x < image.width ; ++x )
+            {
+                const base1 = ( y * image.width + x ) * 4;
+                const base2 = base1 + image.width * 4;
+    
+                const front = this.colorToFrontString( image.data[ base1 ], image.data[ base1 + 1 ], image.data[ base1 + 2 ] );
+                const back = this.colorToBackString( image.data[ base2 ], image.data[ base2 + 1 ], image.data[ base2 + 2 ] );
+    
+                if ( prevBack !== back )
+                {
+                    prevBack = back;
+                    line.push( back );
+                }
+                if ( prevFront !== front )
+                {
+                    prevFront = front;
+                    line.push( front );
+                }
+                line.push( this.halfBlock );
+            }
+            lines.push( line.join( '' ) + this.reset );
         }
     
         return lines.join( this.newLine );
