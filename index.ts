@@ -7,19 +7,19 @@ const url = './docs/sample.jpg';
 
 const strimg = new Strimg( 60, 30 );
 
-console.log( '16 colors.' );
+console.log( '16 color.' );
 await strimg.loadImage( url );
 const img16 = await strimg.convert();
 console.log( img16 );
 
-console.log( '256 colors.' );
+console.log( '256 color.' );
 
 strimg.setTerminalColor( 256 );
 await strimg.loadImage( url );
 const img256 = await strimg.convert();
 console.log( img256 );
 
-console.log( 'Full colors.' );
+console.log( 'Full color.' );
 
 strimg.setTerminalColor( 0 );
 await strimg.loadImage( url );
