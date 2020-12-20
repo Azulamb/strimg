@@ -39,6 +39,10 @@ export class Strimg
         }
     }
 
+    /**
+     * @param color TerminalColor or 16(default 16 color), 256(default 256 color), 0(full color)
+     * @returns true ... success, false ... failure
+     */
     public setTerminalColor( color: TerminalColor | 0 | 16 | 256 )
     {
         if ( typeof color === 'number' )

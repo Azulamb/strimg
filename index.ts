@@ -2,7 +2,7 @@ import { Strimg } from './strimg.ts'
 
 //deno run --allow-net --allow-read index.ts
 
-//const url = 'https://hirokimiyaoka.github.io/Strimg/sample.jpg';
+//const url = 'https://hirokimiyaoka.github.io/strimg/sample.jpg';
 const url = './docs/sample.jpg';
 
 const strimg = new Strimg( 60, 30 );
