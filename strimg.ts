@@ -39,9 +39,19 @@ export class Strimg
         }
     }
 
-    public setTerminalColor( color: TerminalColor )
+    public setTerminalColor( color: TerminalColor | 16 | 256 )
     {
+        if ( typeof color === 'number' )
+        {
+            if ( color === 16 ) { this.color = new termcolor.tc16(); return true; }
+            if ( color === 256 ) { this.color = new termcolor.tc256(); return true; }
+
+            return false;
+        }
+
         this.color = color;
+
+        return true;
     }
 
     public async loadImage( url: string ): Promise<SkImage>
